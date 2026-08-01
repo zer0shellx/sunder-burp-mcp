@@ -1,0 +1,13 @@
+Uuid: c3972b9f6214436ab650098e9a73a4e6
+ExtensionType: 1
+Name: SUNDER
+RepoName: sunder-burp-mcp
+ScreenVersion: 3.1.0
+SerialVersion: 1
+MinPlatformVersion: 26
+ProOnly: False
+Author: Mohamed Ayman
+ShortDescription: Autonomous offensive MCP operator with session-live Burp traffic and actions.
+EntryPoint: sunder-all.jar
+BuildCommand: ./gradlew embedProxyJar
+SupportedProducts: Pro, Community

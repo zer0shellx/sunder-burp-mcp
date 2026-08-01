@@ -1,0 +1,50 @@
+<p>
+	<strong>SUNDER</strong> exposes Burp as an autonomous, authenticated offensive Model Context Protocol (MCP)
+	server. It captures HTTP
+	exchanges and WebSocket messages into session memory so AI assistants can follow live traffic, retrieve only the
+	messages they need, and operate Burp programmatically.
+</p>
+
+<p>
+	For more information about the protocol, visit <a
+		href="https://modelcontextprotocol.io/">modelcontextprotocol.io</a>
+</p>
+
+<p>
+	<strong>Note:</strong> Any data sent to external tools via this extension is subject to their data processing
+	policies.
+</p>
+
+<h2>Features</h2>
+<ul>
+	<li>Send HTTP/1.1 and HTTP/2 requests directly from AI clients with security controls</li>
+	<li>Access and filter proxy history (HTTP and WebSocket) with regex support</li>
+	<li>Generate and poll Burp Collaborator payloads for out-of-band testing (Professional only)</li>
+	<li>Create Repeater tabs and send requests to Intruder</li>
+	<li>Export and modify project and user configuration via JSON</li>
+	<li>Control proxy intercept, task execution engine, and message editor contents</li>
+	<li>Built-in encoding utilities (URL, Base64) and random string generation</li>
+	<li>Automatic Claude Desktop installation with packaged stdio proxy server</li>
+	<li>Session-only live capture across all Burp HTTP tools and WebSocket connections</li>
+	<li>Dedicated live traffic browser with search, raw message viewers, and Repeater handoff</li>
+	<li>Combined HTTP/WebSocket cursor feed, endpoint aggregation, and response-variant detection</li>
+	<li>Autonomous request replay, mutation, sending, cookie, Organizer, crawl, and audit actions</li>
+	<li>Bearer/API-key authentication enabled by default with token rotation</li>
+	<li>No extension traffic database; the in-memory buffer is discarded on unload</li>
+	<li>Burp scope and explicit target allowlists enforce autonomous action boundaries</li>
+	<li>Configurable target approval system for HTTP requests and history access</li>
+	<li>Interact with Organizer entries</li>
+</ul>
+
+<h2>Usage</h2>
+<ol>
+	<li>Navigate to the "SUNDER" tab and enable the MCP server.</li>
+	<li>Configure Burp scope, auto-approve targets, autonomous mode, and configuration editing permissions.</li>
+	<li>Use the installer button to automatically configure Claude Desktop, or manually configure your MCP client to
+		connect to <code class="InlineCode">http://127.0.0.1:9987</code> (SSE mode) or use the packaged stdio proxy
+		server.</li>
+	<li>Interact with Burp through your AI client using the available MCP tools.</li>
+</ol>
+
+<p><br>Created and maintained by Mohamed Ayman.</p>
+<p>Copyright &copy; 2026 Mohamed Ayman. Licensed under GPLv3.</p>

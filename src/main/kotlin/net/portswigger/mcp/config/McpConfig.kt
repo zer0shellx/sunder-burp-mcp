@@ -3,20 +3,32 @@ package net.portswigger.mcp.config
 import burp.api.montoya.logging.Logging
 import burp.api.montoya.persistence.PersistedObject
 import java.lang.ref.WeakReference
+import java.security.SecureRandom
+import java.util.Base64
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 private const val TARGET_SEPARATOR = "\n"
+private val LEGACY_MCP_PORTS = setOf(9876, 9877)
+const val SUNDER_DEFAULT_PORT = 9987
 
 class McpConfig(storage: PersistedObject, private val logging: Logging) {
 
     var enabled by storage.boolean(true)
     var configEditingTooling by storage.boolean(false)
     var host by storage.string("127.0.0.1")
-    var port by storage.int(9876)
+    var port by storage.int(SUNDER_DEFAULT_PORT)
     var requireHttpRequestApproval by storage.boolean(true)
     var requireDataAccessApproval by storage.boolean(true)
+    var requireAuthentication by storage.boolean(true)
+    var authToken by storage.string("")
+    var captureHttp by storage.boolean(true)
+    var captureWebSockets by storage.boolean(true)
+    var scopeOnlyCapture by storage.boolean(false)
+    var importProxyHistory by storage.boolean(true)
+    var maxSessionEvents by storage.int(0)
+    var autonomousMode by storage.boolean(true)
 
     private var _alwaysAllowHttpHistory by storage.boolean(false)
     var alwaysAllowHttpHistory: Boolean
@@ -64,6 +76,12 @@ class McpConfig(storage: PersistedObject, private val logging: Logging) {
         }
 
     init {
+        if (port in LEGACY_MCP_PORTS) {
+            port = SUNDER_DEFAULT_PORT
+        }
+        if (authToken.length < 32) {
+            authToken = generateAuthToken()
+        }
         val current = getAutoApproveTargetsList()
         val valid = current.filter { TargetValidation.isValidTarget(it) }
         if (valid.size != current.size) {
@@ -155,6 +173,17 @@ class McpConfig(storage: PersistedObject, private val logging: Logging) {
     fun cleanup() {
         targetsChangeListeners.clear()
         dataAccessChangeListeners.clear()
+    }
+
+    fun rotateAuthToken(): String {
+        authToken = generateAuthToken()
+        return authToken
+    }
+
+    private fun generateAuthToken(): String {
+        val bytes = ByteArray(32)
+        SecureRandom().nextBytes(bytes)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
 }
 

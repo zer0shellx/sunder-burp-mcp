@@ -25,7 +25,7 @@ interface Provider {
 class ClaudeDesktopProvider(private val logging: Logging, private val proxyJarManager: ProxyJarManager) : Provider {
 
     private val claudeConfigFileName = "claude_desktop_config.json"
-    private val serverName = "burp"
+    private val serverName = "sunder"
 
     override val name = "Claude Desktop"
     override val installButtonText = "Install to $name"
@@ -44,6 +44,11 @@ class ClaudeDesktopProvider(private val logging: Logging, private val proxyJarMa
         val sseUrl = "http://${config.host}:${config.port}"
         val burpServerConfig = buildJsonObject {
             put("command", JsonPrimitive(javaPath))
+            if (config.requireAuthentication) {
+                put("env", buildJsonObject {
+                    put("MCP_AUTH_TOKEN", JsonPrimitive(config.authToken))
+                })
+            }
             put("args", buildJsonArray {
                 add(JsonPrimitive("-jar"))
                 add(JsonPrimitive(proxyJarFile.toString()))
@@ -62,7 +67,7 @@ class ClaudeDesktopProvider(private val logging: Logging, private val proxyJarMa
         }
         path.writeText(json.encodeToString(JsonObject.serializer(), JsonObject(content)))
 
-        logging.logToOutput("Installed Burp MCP Server to Claude Desktop config")
+        logging.logToOutput("Installed SUNDER MCP server to Claude Desktop config")
 
         return "Installation successful. Please restart $name if it is currently running."
     }
@@ -108,7 +113,10 @@ class ClaudeDesktopProvider(private val logging: Logging, private val proxyJarMa
             emptyList()
         }
 
-        return listOf(traditional) + storePaths
+        // Prefer an installed Microsoft Store profile over the legacy roaming
+        // profile. Both can remain on disk, but the Store build only reads its
+        // package-local roaming directory.
+        return storePaths + listOf(traditional)
     }
 
     private fun createDefaultConfig(path: Path): Boolean {

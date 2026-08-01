@@ -11,6 +11,7 @@ import net.portswigger.mcp.providers.Provider
 import java.awt.BorderLayout
 import java.awt.Component.CENTER_ALIGNMENT
 import java.awt.GridBagLayout
+import java.net.BindException
 import javax.swing.*
 import javax.swing.Box.*
 import javax.swing.JOptionPane.ERROR_MESSAGE
@@ -138,13 +139,16 @@ class ConfigUi(private val config: McpConfig, private val providers: List<Provid
                     enabledToggle.isEnabled = true
                     enabledToggle.setState(false, animate = false)
 
-                    val friendlyMessage = when (state.exception) {
-                        is UnresolvedAddressException -> "Unable to resolve address"
+                    val causes = generateSequence<Throwable>(state.exception) { it.cause }.toList()
+                    val friendlyMessage = when {
+                        causes.any { it is BindException } ->
+                            "Port ${config.port} is already in use. Stop the other MCP server or choose another port."
+                        causes.any { it is UnresolvedAddressException } -> "Unable to resolve address"
                         else -> state.exception.message ?: state.exception.javaClass.simpleName
                     }
 
                     Dialogs.showMessageDialog(
-                        panel, "Failed to start Burp MCP Server: $friendlyMessage", ERROR_MESSAGE
+                        panel, "Failed to start SUNDER MCP server: $friendlyMessage", ERROR_MESSAGE
                     )
                 }
             }
@@ -157,13 +161,13 @@ class ConfigUi(private val config: McpConfig, private val providers: List<Provid
         val leftPanel = JPanel(GridBagLayout())
 
         val headerBox = createVerticalBox().apply {
-            add(JLabel("Burp MCP Server").apply {
+            add(JLabel("SUNDER").apply {
                 font = Design.Typography.headlineMedium
                 foreground = Design.Colors.onSurface
                 alignmentX = CENTER_ALIGNMENT
             })
             add(createVerticalStrut(Design.Spacing.MD))
-            add(JLabel("Burp MCP Server exposes Burp tooling to AI clients.").apply {
+            add(JLabel("Autonomous offensive operations through Burp Suite.").apply {
                 font = Design.Typography.bodyLarge
                 foreground = Design.Colors.onSurfaceVariant
                 alignmentX = CENTER_ALIGNMENT

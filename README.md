@@ -1,143 +1,174 @@
-# Burp Suite MCP Server Extension
+# SUNDER
 
-## Overview
+[![CI](https://github.com/muhamed97/sunder-burp-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/muhamed97/sunder-burp-mcp/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-Integrate Burp Suite with AI Clients using the Model Context Protocol (MCP).
+**SUNDER** is an autonomous offensive MCP operator for Burp Suite. It turns an
+MCP-capable AI assistant into a second operator inside Burp, preserves the tools
+from PortSwigger's MCP extension, adds a session-only live feed across Burp
+tools, and adds action tools for replaying, editing, sending, organizing,
+crawling, and auditing requests.
 
-For more information about the protocol visit: [modelcontextprotocol.io](https://modelcontextprotocol.io/)
+The extension does **not** create a traffic database. HTTP exchanges and
+WebSocket messages are held only in memory for the current extension session
+and disappear when the extension is unloaded or Burp closes. Burp's own project
+and history remain the source of truth.
 
-## Features
+Use this extension only on systems you own or are explicitly authorized to
+test.
 
-- Connect Burp Suite to AI clients through MCP
-- Automatic installation for Claude Desktop
-- Comes with packaged Stdio MCP proxy server
+## What it does
 
-## Usage
+- Captures HTTP requests and responses emitted by every Burp tool through the
+  Montoya API.
+- Captures text and binary WebSocket messages from Burp-created connections.
+- Imports the Proxy history already present when the extension loads, then
+  continues with live events.
+- Lets an AI poll one combined HTTP/WebSocket event stream using independent
+  cursors.
+- Searches and retrieves complete exchanges without putting the whole session
+  into the model context.
+- Lets an AI edit and send requests directly through Burp, replay stored
+  requests, send batches, create Repeater tabs, add Organizer entries, and
+  manage cookies.
+- On Burp Suite Professional, lets an AI start, inspect, and stop crawl and
+  audit tasks.
+- Preserves the official request, Repeater, Intruder, Collaborator, Proxy,
+  configuration, encoding, and utility tools.
+- Protects the MCP endpoint with a random bearer/API-key token by default.
 
-- Install the extension in Burp Suite
-- Configure your Burp MCP server in the extension settings
-- Configure your MCP client to use the Burp SSE MCP server or stdio proxy
-- Interact with Burp through your client!
+## Autonomous safety model
 
-## Installation
+When **Autonomous agent mode** is enabled, the extension does not show manual
+approval dialogs. An outgoing target must instead be either:
 
-### Prerequisites
+1. in Burp's suite scope; or
+2. matched by an explicit MCP auto-approve target.
 
-Ensure that the following prerequisites are met before building and installing the extension:
+Requests outside both boundaries are rejected. The AI can check scope and
+remove URLs from scope, but it cannot add new targets to scope through MCP. This
+prevents the agent from expanding its own authority.
 
-1. **Java**: Java must be installed and available in your system's PATH. You can verify this by running `java --version` in your terminal.
-2. **jar Command**: The `jar` command must be executable and available in your system's PATH. You can verify this by running `jar --version` in your terminal. This is required for building and installing the extension.
+The MCP server listens on `127.0.0.1:9987` by default. Authentication is enabled
+by default and accepts either:
 
-### Building the Extension
-
-1. **Clone the Repository**: Obtain the source code for the MCP Server Extension.
-   ```
-   git clone https://github.com/PortSwigger/mcp-server.git
-   ```
-
-2. **Navigate to the Project Directory**: Move into the project's root directory.
-   ```
-   cd mcp-server
-   ```
-
-3. **Build the JAR File**: Use Gradle to build the extension.
-   ```
-   ./gradlew embedProxyJar
-   ```
-
-   This command compiles the source code and packages it into a JAR file located in `build/libs/burp-mcp-all.jar`.
-
-### Loading the Extension into Burp Suite
-
-1. **Open Burp Suite**: Launch your Burp Suite application.
-2. **Access the Extensions Tab**: Navigate to the `Extensions` tab.
-3. **Add the Extension**:
-    - Click on `Add`.
-    - Set `Extension Type` to `Java`.
-    - Click `Select file ...` and choose the JAR file built in the previous step.
-    - Click `Next` to load the extension.
-
-Upon successful loading, the MCP Server Extension will be active within Burp Suite.
-
-## Configuration
-
-### Configuring the Extension
-Configuration for the extension is done through the Burp Suite UI in the `MCP` tab.
-- **Toggle the MCP Server**: The `Enabled` checkbox controls whether the MCP server is active.
-- **Enable config editing**: The `Enable tools that can edit your config` checkbox allows the MCP server to expose tools which can edit Burp configuration files.
-- **Advanced options**: You can configure the port and host for the MCP server. By default, it listens on `http://127.0.0.1:9876`.
-
-### Claude Desktop Client
-
-To fully utilize the MCP Server Extension with Claude, you need to configure your Claude client settings appropriately.
-The extension has an installer which will automatically configure the client settings for you.
-
-1. Currently, Claude Desktop only support STDIO MCP Servers
-   for the service it needs.
-   This approach isn't ideal for desktop apps like Burp, so instead, Claude will start a proxy server that points to the
-   Burp instance,  
-   which hosts a web server at a known port (`localhost:9876`).
-
-2. **Configure Claude to use the Burp MCP server**  
-   You can do this in one of two ways:
-
-    - **Option 1: Run the installer from the extension**
-      This will add the Burp MCP server to the Claude Desktop config.
-
-    - **Option 2: Manually edit the config file**  
-      Open the file located at `~/Library/Application Support/Claude/claude_desktop_config.json`,
-      and replace or update it with the following:
-      ```json
-      {
-        "mcpServers": {
-          "burp": {
-            "command": "<path to Java executable packaged with Burp>",
-            "args": [
-                "-jar",
-                "/path/to/mcp/proxy/jar/mcp-proxy-all.jar",
-                "--sse-url",
-                "<your Burp MCP server URL configured in the extension>"
-            ]
-          }
-        }
-      }
-      ```
-
-3. **Restart Claude Desktop** - assuming Burp is running with the extension loaded.
-
-## Manual installations
-If you want to install the MCP server manually you can either use the extension's SSE server directly or the packaged
-Stdio proxy server.
-
-### SSE MCP Server
-In order to use the SSE server directly you can just provide the url for the server in your client's configuration. Depending
-on your client and your configuration in the extension this may be with or without the `/sse` path.
-```
-http://127.0.0.1:9876
-```
-or
-```
-http://127.0.0.1:9876/sse
+```text
+Authorization: Bearer <token>
 ```
 
-### Stdio MCP Proxy Server
-The source code for the proxy server can be found here: [MCP Proxy Server](https://github.com/PortSwigger/mcp-proxy)
+or:
 
-In order to support MCP Clients which only support Stdio MCP Servers, the extension comes packaged with a proxy server for
-passing requests to the SSE MCP server extension.
-
-If you want to use the Stdio proxy server you can use the extension's installer option to extract the proxy server jar.
-Once you have the jar you can add the following command and args to your client configuration:
-```
-/path/to/packaged/burp/java -jar /path/to/proxy/jar/mcp-proxy-all.jar --sse-url http://127.0.0.1:9876
+```text
+X-API-Key: <token>
 ```
 
-### Creating / modifying tools
+## Session-only live feed
 
-Tools are defined in `src/main/kotlin/net/portswigger/mcp/tools/Tools.kt`. To define new tools, create a new serializable
-data class with the required parameters which will come from the LLM.
+The extension creates no traffic database and does not persist captured
+requests. The **SUNDER Traffic** tab displays the in-memory session buffer.
+You can clear that buffer without deleting or changing Burp's own history.
 
-The tool name is auto-derived from its parameters data class. A description is also needed for the LLM. You can return
-a string (or richer PromptMessageContents) to provide data back to the LLM.
+`Maximum session events` defaults to `0`, meaning unlimited for the current
+session. This avoids an artificial history offset but may consume substantial
+RAM during long or high-volume tests. Set a positive value to retain only the
+newest events in the extension buffer.
 
-Extend the Paginated interface to add auto-pagination support.
+MCP is request/response based. The extension captures events immediately, but
+an AI client must repeatedly call `agent_get_events` to notice new traffic.
+The extension cannot wake an idle Claude, Codex, or other MCP client by itself.
+
+## MCP tools added by SUNDER
+
+### Live traffic
+
+| Tool | Purpose |
+| --- | --- |
+| `agent_get_events` | Poll combined HTTP and WebSocket events with independent cursors |
+| `traffic_get_latest` | Return compact metadata for recent HTTP exchanges |
+| `traffic_get_since` | Return HTTP exchanges after a sequence number |
+| `traffic_search` | Search URLs, hosts, methods, requests, and responses |
+| `traffic_get_exchange` | Retrieve one complete exchange; sensitive headers are redacted by default |
+| `traffic_list_endpoints` | Aggregate endpoints and response variants |
+| `traffic_get_changed_endpoints` | Find endpoints whose responses changed after a sequence |
+| `traffic_create_repeater_tab` | Create a Repeater tab from a captured or edited request |
+| `traffic_statistics` | Show session counts, memory estimate, cursors, and dropped events |
+| `web_socket_get_latest` | Retrieve WebSocket message metadata incrementally |
+| `web_socket_search` | Search WebSocket URLs and text payloads |
+| `web_socket_get_message` | Retrieve a complete text or Base64 binary message |
+
+Metadata calls are capped to keep responses manageable, while full messages are
+retrieved only when needed. Full-message responses are capped at 2 MB.
+
+### Autonomous actions
+
+| Tool | Purpose |
+| --- | --- |
+| `request_replay` | Replay a captured request through Burp |
+| `request_modify_and_send` | Edit a captured request and send it through Burp |
+| `request_send_batch` | Send up to 25 requests in one operation |
+| `scope_check` | Check whether a URL is in Burp scope |
+| `scope_exclude` | Remove a URL from Burp scope |
+| `session_get_cookies` | Read Burp's cookie jar |
+| `session_set_cookie` | Add or update a cookie for an authorized target |
+| `organizer_add_exchange` | Add a captured exchange to Organizer |
+| `scanner_start_audit` | Start a Burp Professional audit |
+| `scanner_start_crawl` | Start a Burp Professional crawl |
+| `scanner_task_status` | Inspect an AI-started Scanner task |
+| `scanner_task_stop` | Stop an AI-started Scanner task |
+
+The Montoya API can prepare a request in Intruder but does not expose a way to
+press Intruder's attack-start button. Repeater tabs are available for visibility
+and inspection; autonomous sending uses Burp's HTTP stack directly.
+
+## Build and install
+
+Requirements: Java 21 and a working `jar` command.
+
+On Windows:
+
+```powershell
+.\gradlew.bat embedProxyJar
+```
+
+On Linux or macOS:
+
+```bash
+./gradlew embedProxyJar
+```
+
+Load `build/libs/sunder-all.jar` in Burp under
+**Extensions → Installed → Add**, with extension type **Java**.
+
+In the **SUNDER** tab:
+
+1. Keep authentication enabled and copy or rotate the generated token.
+2. Define Burp scope and/or explicit auto-approve targets.
+3. Enable Autonomous agent mode.
+4. Enable the MCP server.
+5. Configure the client using the built-in Claude installer, the SSE endpoint,
+   or the bundled stdio proxy.
+
+The default SSE endpoint is:
+
+```text
+http://127.0.0.1:9987
+```
+
+The bundled Claude Desktop installer supplies the token as
+`MCP_AUTH_TOKEN`; it is not placed in command-line arguments. If you rotate the
+token, reinstall or update the client configuration.
+
+## Sharing and license
+
+SUNDER is an independent project derived from PortSwigger's MCP server and
+remains licensed under GPLv3. It is not an official PortSwigger product and is
+not endorsed by PortSwigger. If you publish binaries or source, preserve the
+license and copyright notices, publish the corresponding source, and clearly
+identify your changes.
+
+The fork is based on PortSwigger MCP Server v1.3.0, commit
+[`5f76126`](https://github.com/PortSwigger/mcp-server/commit/5f76126409780ecba2b766c7f7388f465c5b5f94).
+See [NOTICE.md](NOTICE.md) for attribution and a summary of the fork's changes.
+
+Security issues should be reported according to [SECURITY.md](SECURITY.md), not
+through a public issue containing credentials or private target traffic.

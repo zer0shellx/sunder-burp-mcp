@@ -49,6 +49,44 @@ class McpConfigTest {
     }
 
     @Test
+    fun `migrates inherited conflicting MCP ports to the SUNDER default`() {
+        listOf(9876, 9877).forEach { legacyPort ->
+            val storage = mutableMapOf<String, Any>("port" to legacyPort)
+            val persisted = mockk<PersistedObject>().apply {
+                every { getBoolean(any()) } answers { storage[firstArg()] as? Boolean }
+                every { getString(any()) } answers { storage[firstArg()] as? String }
+                every { getInteger(any()) } answers { storage[firstArg()] as? Int }
+                every { setBoolean(any(), any()) } answers {
+                    storage[firstArg()] = secondArg<Boolean>()
+                }
+                every { setString(any(), any()) } answers {
+                    storage[firstArg()] = secondArg<String>()
+                }
+                every { setInteger(any(), any()) } answers {
+                    storage[firstArg()] = secondArg<Int>()
+                }
+            }
+            val logging = mockk<Logging>(relaxed = true)
+
+            val migrated = McpConfig(persisted, logging)
+
+            assertEquals(SUNDER_DEFAULT_PORT, migrated.port)
+            verify { persisted.setInteger("port", SUNDER_DEFAULT_PORT) }
+        }
+    }
+
+    @Test
+    fun `creates and rotates a strong authentication token`() {
+        val first = config.authToken
+        val second = config.rotateAuthToken()
+
+        assertTrue(first.length >= 32)
+        assertTrue(second.length >= 32)
+        assertNotEquals(first, second)
+        verify(atLeast = 2) { persistedObject.setString("authToken", any()) }
+    }
+
+    @Test
     fun `addAutoApproveTarget should add new target`() {
         val result = config.addAutoApproveTarget("example.com")
 

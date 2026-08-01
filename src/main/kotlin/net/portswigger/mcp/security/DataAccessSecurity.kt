@@ -73,6 +73,10 @@ object DataAccessSecurity {
     suspend fun checkDataAccessPermission(
         accessType: DataAccessType, config: McpConfig
     ): Boolean {
+        if (config.autonomousMode) {
+            return true
+        }
+
         if (!config.requireDataAccessApproval) {
             return true
         }

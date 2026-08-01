@@ -4,6 +4,8 @@ import net.portswigger.mcp.config.Design
 import net.portswigger.mcp.config.McpConfig
 import net.portswigger.mcp.config.ToggleSwitch
 import java.awt.FlowLayout
+import java.awt.Toolkit
+import java.awt.datatransfer.StringSelection
 import java.awt.event.ItemEvent
 import javax.swing.*
 import javax.swing.Box.createHorizontalStrut
@@ -46,6 +48,17 @@ class ServerConfigurationPanel(
 
         val enabledPanel = createEnabledPanel()
         add(enabledPanel)
+        add(createVerticalStrut(Design.Spacing.MD))
+
+        add(createAuthenticationPanel())
+        add(createVerticalStrut(Design.Spacing.MD))
+
+        val autonomousModeCheckBox = createCheckBoxWithSubtitle(
+            "Autonomous agent mode",
+            "No approval dialogs. Requests are restricted to Burp scope and explicit target allowlists.",
+            config.autonomousMode,
+        ) { config.autonomousMode = it }
+        add(autonomousModeCheckBox)
         add(createVerticalStrut(Design.Spacing.MD))
 
         val configEditingToolingCheckBox = createCheckBoxWithSubtitle(
@@ -110,6 +123,78 @@ class ServerConfigurationPanel(
         enabledPanel.add(createHorizontalStrut(Design.Spacing.MD))
         enabledPanel.add(enabledToggle)
         return enabledPanel
+    }
+
+    private fun createAuthenticationPanel(): JPanel {
+        val tokenField = JPasswordField(config.authToken, 34).apply {
+            isEditable = false
+            echoChar = '\u2022'
+            maximumSize = preferredSize
+        }
+        val showButton = JButton("Show").apply {
+            addActionListener {
+                val showing = tokenField.echoChar.code == 0
+                tokenField.echoChar = if (showing) '\u2022' else 0.toChar()
+                text = if (showing) "Show" else "Hide"
+            }
+        }
+        val copyButton = JButton("Copy").apply {
+            addActionListener {
+                Toolkit.getDefaultToolkit().systemClipboard.setContents(
+                    StringSelection(config.authToken),
+                    null,
+                )
+            }
+        }
+        val rotateButton = JButton("Rotate").apply {
+            addActionListener {
+                val answer = JOptionPane.showConfirmDialog(
+                    this@ServerConfigurationPanel,
+                    "Rotate the MCP authentication token? Installed AI clients must be reinstalled.",
+                    "Rotate authentication token",
+                    JOptionPane.OK_CANCEL_OPTION,
+                )
+                if (answer == JOptionPane.OK_OPTION) {
+                    tokenField.text = config.rotateAuthToken()
+                }
+            }
+        }
+        val controls = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+            add(tokenField)
+            add(showButton)
+            add(copyButton)
+            add(rotateButton)
+        }
+        val enabled = createStandardCheckBox(
+            "Require authentication for MCP connections",
+            config.requireAuthentication,
+        ) { selected ->
+            config.requireAuthentication = selected
+            tokenField.isEnabled = selected
+            showButton.isEnabled = selected
+            copyButton.isEnabled = selected
+            rotateButton.isEnabled = selected
+        }
+        tokenField.isEnabled = config.requireAuthentication
+        showButton.isEnabled = config.requireAuthentication
+        copyButton.isEnabled = config.requireAuthentication
+        rotateButton.isEnabled = config.requireAuthentication
+
+        return JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            alignmentX = LEFT_ALIGNMENT
+            isOpaque = false
+            add(enabled)
+            add(createVerticalStrut(Design.Spacing.SM))
+            add(controls)
+            add(JLabel("Use this token as MCP_AUTH_TOKEN. Reinstall clients after rotating it.").apply {
+                font = Design.Typography.labelMedium
+                foreground = Design.Colors.onSurfaceVariant
+                alignmentX = LEFT_ALIGNMENT
+            })
+        }
     }
 
     private fun createDataAccessApprovalCheckBox(): JCheckBox {

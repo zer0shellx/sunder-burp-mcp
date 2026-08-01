@@ -34,6 +34,8 @@ import net.portswigger.mcp.TestSseMcpClient
 import net.portswigger.mcp.config.McpConfig
 import net.portswigger.mcp.schema.HttpRequestResponse
 import net.portswigger.mcp.schema.toSerializableForm
+import net.portswigger.mcp.traffic.LiveTrafficRecorder
+import net.portswigger.mcp.traffic.TrafficStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -46,7 +48,9 @@ class ToolsKtTest {
     
     private val client = TestSseMcpClient()
     private val api = mockk<MontoyaApi>(relaxed = true)
-    private val serverManager = KtorServerManager(api)
+    private val trafficStore = mockk<TrafficStore>(relaxed = true)
+    private val trafficRecorder = mockk<LiveTrafficRecorder>(relaxed = true)
+    private val serverManager = KtorServerManager(api, trafficStore, trafficRecorder)
     private val testPort = findAvailablePort()
     private var serverStarted = false
     private val config: McpConfig
@@ -59,11 +63,14 @@ class ToolsKtTest {
             every { getBoolean("configEditingTooling") } returns true
             every { getBoolean("requireHttpRequestApproval") } returns false
             every { getBoolean("requireDataAccessApproval") } returns false
+            every { getBoolean("requireAuthentication") } returns false
+            every { getBoolean("autonomousMode") } returns false
             every { getBoolean("_alwaysAllowHttpHistory") } returns false
             every { getBoolean("_alwaysAllowWebSocketHistory") } returns false
             every { getBoolean("_alwaysAllowOrganizer") } returns false
             every { getString("host") } returns "127.0.0.1"
             every { getString("_autoApproveTargets") } returns ""
+            every { getString("authToken") } returns "test-token-with-at-least-thirty-two-characters"
             every { getInteger("port") } returns testPort
             every { setBoolean(any(), any()) } returns Unit
             every { setString(any(), any()) } returns Unit

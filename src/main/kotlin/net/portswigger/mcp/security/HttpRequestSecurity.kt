@@ -105,8 +105,22 @@ object HttpRequestSecurity {
     }
 
     suspend fun checkHttpRequestPermission(
-        hostname: String, port: Int, config: McpConfig, requestContent: String? = null, api: MontoyaApi? = null
+        hostname: String,
+        port: Int,
+        config: McpConfig,
+        requestContent: String? = null,
+        api: MontoyaApi? = null,
+        usesHttps: Boolean? = null,
     ): Boolean {
+        if (config.autonomousMode) {
+            if (isAutoApproved(hostname, port, config)) return true
+            val secure = usesHttps ?: (port == 443)
+            val defaultPort = if (secure) 443 else 80
+            val authority = if (port == defaultPort) hostname else "$hostname:$port"
+            val targetUrl = "${if (secure) "https" else "http"}://$authority/"
+            return api?.scope()?.isInScope(targetUrl) == true
+        }
+
         if (!config.requireHttpRequestApproval) {
             return true
         }

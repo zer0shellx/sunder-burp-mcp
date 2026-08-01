@@ -7,15 +7,22 @@ import net.portswigger.mcp.config.McpConfig
 import net.portswigger.mcp.providers.ClaudeDesktopProvider
 import net.portswigger.mcp.providers.ManualProxyInstallerProvider
 import net.portswigger.mcp.providers.ProxyJarManager
+import net.portswigger.mcp.traffic.LiveTrafficRecorder
+import net.portswigger.mcp.traffic.LiveTrafficPanel
+import net.portswigger.mcp.traffic.InMemoryTrafficStore
 
 @Suppress("unused")
 class ExtensionBase : BurpExtension {
 
     override fun initialize(api: MontoyaApi) {
-        api.extension().setName("Burp MCP Server")
+        api.extension().setName("SUNDER")
 
         val config = McpConfig(api.persistence().extensionData(), api.logging())
-        val serverManager = KtorServerManager(api)
+        val trafficStore = InMemoryTrafficStore { config.maxSessionEvents }
+        val trafficRecorder = LiveTrafficRecorder(api, trafficStore, config)
+        trafficRecorder.start()
+        val serverManager = KtorServerManager(api, trafficStore, trafficRecorder)
+        api.logging().logToOutput("SUNDER session-only capture initialized (no traffic database)")
 
         val proxyJarManager = ProxyJarManager(api.logging())
 
@@ -40,10 +47,15 @@ class ExtensionBase : BurpExtension {
             }
         }
 
-        api.userInterface().registerSuiteTab("MCP", configUi.component)
+        api.userInterface().registerSuiteTab("SUNDER", configUi.component)
+        val liveTrafficPanel = LiveTrafficPanel(api, config, trafficStore, trafficRecorder)
+        api.userInterface().registerSuiteTab("SUNDER Traffic", liveTrafficPanel)
 
         api.extension().registerUnloadingHandler {
             serverManager.shutdown()
+            trafficRecorder.close()
+            liveTrafficPanel.close()
+            trafficStore.close()
             configUi.cleanup()
             config.cleanup()
         }

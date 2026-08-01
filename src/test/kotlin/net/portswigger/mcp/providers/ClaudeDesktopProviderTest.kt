@@ -13,7 +13,7 @@ class ClaudeDesktopProviderTest {
     private val provider = ClaudeDesktopProvider(mockk(relaxed = true), mockk(relaxed = true))
 
     @Test
-    fun `windowsCandidatePaths includes traditional path first`(@TempDir home: Path) {
+    fun `windowsCandidatePaths includes traditional path when no Store package exists`(@TempDir home: Path) {
         val paths = provider.windowsCandidatePaths(home.toString())
 
         assertEquals(home.resolve("AppData").resolve("Roaming").resolve("Claude"), paths.first())
@@ -27,6 +27,7 @@ class ClaudeDesktopProviderTest {
         val paths = provider.windowsCandidatePaths(home.toString())
 
         assertTrue(paths.contains(storeDir), "Expected Store path in candidates: $paths")
+        assertEquals(storeDir, paths.first())
     }
 
     @Test

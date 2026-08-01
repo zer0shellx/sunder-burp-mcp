@@ -15,12 +15,19 @@ import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import net.portswigger.mcp.config.McpConfig
 import net.portswigger.mcp.tools.registerTools
+import net.portswigger.mcp.traffic.LiveTrafficRecorder
+import net.portswigger.mcp.traffic.TrafficStore
 import java.net.URI
+import java.security.MessageDigest
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-class KtorServerManager(private val api: MontoyaApi) : ServerManager {
+class KtorServerManager(
+    private val api: MontoyaApi,
+    private val trafficStore: TrafficStore,
+    private val trafficRecorder: LiveTrafficRecorder,
+) : ServerManager {
 
     private var server: EmbeddedServer<*, *>? = null
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -34,7 +41,7 @@ class KtorServerManager(private val api: MontoyaApi) : ServerManager {
                 server = null
 
                 val mcpServer = Server(
-                    serverInfo = Implementation("burp-suite", "1.1.2"), options = ServerOptions(
+                    serverInfo = Implementation("sunder", "3.0.0"), options = ServerOptions(
                         capabilities = ServerCapabilities(
                             tools = ServerCapabilities.Tools(listChanged = false)
                         )
@@ -51,7 +58,9 @@ class KtorServerManager(private val api: MontoyaApi) : ServerManager {
 
                         allowHeader(HttpHeaders.ContentType)
                         allowHeader(HttpHeaders.Accept)
+                        allowHeader(HttpHeaders.Authorization)
                         allowHeader("Last-Event-ID")
+                        allowHeader("X-API-Key")
 
                         allowCredentials = false
                         allowNonSimpleContentTypes = true
@@ -63,6 +72,18 @@ class KtorServerManager(private val api: MontoyaApi) : ServerManager {
                         val host = call.request.header("Host")
                         val referer = call.request.header("Referer")
                         val userAgent = call.request.header("User-Agent")
+
+                        if (config.requireAuthentication && !authenticationMatches(
+                                call.request.header(HttpHeaders.Authorization),
+                                call.request.header("X-API-Key"),
+                                config.authToken,
+                            )
+                        ) {
+                            api.logging().logToOutput("Blocked unauthenticated MCP request")
+                            call.response.header(HttpHeaders.WWWAuthenticate, "Bearer")
+                            call.respond(HttpStatusCode.Unauthorized)
+                            return@intercept
+                        }
 
                         if (origin != null && !isValidOrigin(origin)) {
                             api.logging().logToOutput("Blocked DNS rebinding attack from origin: $origin")
@@ -96,12 +117,12 @@ class KtorServerManager(private val api: MontoyaApi) : ServerManager {
                         mcpServer
                     }
 
-                    mcpServer.registerTools(api, config)
+                    mcpServer.registerTools(api, config, trafficStore, trafficRecorder)
                 }.apply {
                     start(wait = false)
                 }
 
-                api.logging().logToOutput("Started MCP server on ${config.host}:${config.port}")
+                api.logging().logToOutput("Started SUNDER MCP server on ${config.host}:${config.port}")
                 callback(ServerState.Running)
 
             } catch (e: Exception) {
@@ -118,7 +139,7 @@ class KtorServerManager(private val api: MontoyaApi) : ServerManager {
             try {
                 server?.stop(1000, 5000)
                 server = null
-                api.logging().logToOutput("Stopped MCP server")
+                api.logging().logToOutput("Stopped SUNDER MCP server")
                 callback(ServerState.Stopped)
             } catch (e: Exception) {
                 api.logging().logToError(e)
@@ -192,4 +213,22 @@ class KtorServerManager(private val api: MontoyaApi) : ServerManager {
             return false
         }
     }
+
+}
+
+internal fun authenticationMatches(
+    authorization: String?,
+    apiKey: String?,
+    expectedToken: String,
+): Boolean {
+    if (expectedToken.isBlank()) return false
+    val bearerToken = authorization
+        ?.takeIf { it.startsWith("Bearer ", ignoreCase = true) }
+        ?.substringAfter(' ')
+        ?.trim()
+    val supplied = bearerToken ?: apiKey ?: return false
+    return MessageDigest.isEqual(
+        supplied.toByteArray(Charsets.UTF_8),
+        expectedToken.toByteArray(Charsets.UTF_8),
+    )
 }

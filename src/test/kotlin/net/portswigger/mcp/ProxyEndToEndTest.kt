@@ -9,6 +9,8 @@ import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import net.portswigger.mcp.config.McpConfig
+import net.portswigger.mcp.traffic.LiveTrafficRecorder
+import net.portswigger.mcp.traffic.TrafficStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -32,7 +34,9 @@ class ProxyEndToEndTest {
     private val logger = LoggerFactory.getLogger(ProxyEndToEndTest::class.java)
 
     private val api = mockk<MontoyaApi>(relaxed = true)
-    private val serverManager = KtorServerManager(api)
+    private val trafficStore = mockk<TrafficStore>(relaxed = true)
+    private val trafficRecorder = mockk<LiveTrafficRecorder>(relaxed = true)
+    private val serverManager = KtorServerManager(api, trafficStore, trafficRecorder)
     private val testPort = findAvailablePort()
     private val persistedObject = mockk<PersistedObject>()
 
@@ -41,6 +45,7 @@ class ProxyEndToEndTest {
 
     init {
         every { persistedObject.getBoolean(any()) } returns true
+        every { persistedObject.getBoolean("requireAuthentication") } returns false
         every { persistedObject.getString(any()) } returns "127.0.0.1"
         every { persistedObject.getInteger("port") } returns testPort
         every { persistedObject.setBoolean(any(), any()) } returns Unit

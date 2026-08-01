@@ -16,4 +16,8 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-rootProject.name = "burp-mcp"
+includeBuild("proxy") {
+    name = "sunder-mcp-proxy"
+}
+
+rootProject.name = "sunder"

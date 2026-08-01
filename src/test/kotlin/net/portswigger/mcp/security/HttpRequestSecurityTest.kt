@@ -1,10 +1,13 @@
 package net.portswigger.mcp.security
 
+import burp.api.montoya.MontoyaApi
 import burp.api.montoya.logging.Logging
 import burp.api.montoya.persistence.PersistedObject
+import burp.api.montoya.scope.Scope
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.coVerify
 import kotlinx.coroutines.runBlocking
 import net.portswigger.mcp.config.McpConfig
 import org.junit.jupiter.api.AfterEach
@@ -62,6 +65,38 @@ class HttpRequestSecurityTest {
     @AfterEach
     fun tearDown() {
         HttpRequestSecurity.approvalHandler = originalApprovalHandler
+    }
+
+    @Test
+    fun `autonomous mode allows scope and allowlist without dialogs and denies other targets`() {
+        config.autonomousMode = true
+        val api = mockk<MontoyaApi>()
+        val scope = mockk<Scope>()
+        every { api.scope() } returns scope
+        every { scope.isInScope("https://in-scope.test/") } returns true
+        every { scope.isInScope("https://outside.test/") } returns false
+        config.addAutoApproveTarget("allowlisted.test")
+
+        runBlocking {
+            assertTrue(
+                HttpRequestSecurity.checkHttpRequestPermission(
+                    "in-scope.test", 443, config, api = api, usesHttps = true
+                )
+            )
+            assertTrue(
+                HttpRequestSecurity.checkHttpRequestPermission(
+                    "allowlisted.test", 443, config, api = api, usesHttps = true
+                )
+            )
+            assertFalse(
+                HttpRequestSecurity.checkHttpRequestPermission(
+                    "outside.test", 443, config, api = api, usesHttps = true
+                )
+            )
+        }
+        coVerify(exactly = 0) {
+            mockApprovalHandler.requestApproval(any(), any(), any(), any(), any())
+        }
     }
 
     @Test

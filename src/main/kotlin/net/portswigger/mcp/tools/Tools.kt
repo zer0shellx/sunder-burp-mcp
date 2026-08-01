@@ -19,6 +19,8 @@ import net.portswigger.mcp.security.DataAccessSecurity
 import net.portswigger.mcp.security.DataAccessType
 import net.portswigger.mcp.security.HttpRequestSecurity
 import net.portswigger.mcp.security.filterConfigCredentials
+import net.portswigger.mcp.traffic.LiveTrafficRecorder
+import net.portswigger.mcp.traffic.TrafficStore
 import java.awt.KeyboardFocusManager
 import java.util.regex.Pattern
 import javax.swing.JTextArea
@@ -115,11 +117,21 @@ private fun normalizePrelude(prelude: String): String = prelude
     .replace("\r", "")          // Actual CR → remove
     .replace("\n", "\r\n")      // All LF → proper CRLF
 
-fun Server.registerTools(api: MontoyaApi, config: McpConfig) {
+fun Server.registerTools(
+    api: MontoyaApi,
+    config: McpConfig,
+    trafficStore: TrafficStore,
+    trafficRecorder: LiveTrafficRecorder,
+) {
+
+    registerLiveTrafficTools(api, config, trafficStore, trafficRecorder)
+    registerAutonomousTools(api, config, trafficStore)
 
     mcpTool<SendHttp1Request>("Issues an HTTP/1.1 request and returns the response.") {
         val allowed = runBlocking {
-            HttpRequestSecurity.checkHttpRequestPermission(targetHostname, targetPort, config, content, api)
+            HttpRequestSecurity.checkHttpRequestPermission(
+                targetHostname, targetPort, config, content, api, usesHttps
+            )
         }
         if (!allowed) {
             api.logging().logToOutput("MCP HTTP request denied: $targetHostname:$targetPort")
@@ -152,7 +164,9 @@ fun Server.registerTools(api: MontoyaApi, config: McpConfig) {
         }
 
         val allowed = runBlocking {
-            HttpRequestSecurity.checkHttpRequestPermission(targetHostname, targetPort, config, http2RequestDisplay, api)
+            HttpRequestSecurity.checkHttpRequestPermission(
+                targetHostname, targetPort, config, http2RequestDisplay, api, usesHttps
+            )
         }
         if (!allowed) {
             api.logging().logToOutput("MCP HTTP request denied: $targetHostname:$targetPort")
